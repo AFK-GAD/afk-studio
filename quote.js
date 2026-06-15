@@ -266,6 +266,92 @@ function box(w, h, d, color){
   return new THREE.Mesh(geo, mat);
 }
 
+// A box with rounded vertical edges (rounded rect cross-section, extruded along Z = depth)
+function roundedBox(w, h, d, radius, color){
+  const r = Math.min(radius, w/2 - 0.001, h/2 - 0.001);
+  const shape = new THREE.Shape();
+  const x = -w/2, y = -h/2;
+
+  shape.moveTo(x + r, y);
+  shape.lineTo(x + w - r, y);
+  shape.quadraticCurveTo(x + w, y, x + w, y + r);
+  shape.lineTo(x + w, y + h - r);
+  shape.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  shape.lineTo(x + r, y + h);
+  shape.quadraticCurveTo(x, y + h, x, y + h - r);
+  shape.lineTo(x, y + r);
+  shape.quadraticCurveTo(x, y, x + r, y);
+
+  const geo = new THREE.ExtrudeGeometry(shape, {
+    depth: d,
+    bevelEnabled: false,
+    curveSegments: 8
+  });
+  geo.translate(0, 0, -d/2); // center along Z so position behaves like BoxGeometry
+  const mat = new THREE.MeshStandardMaterial({ color: color, metalness: 0.4, roughness: 0.5 });
+  return new THREE.Mesh(geo, mat);
+}
+
+// A box that tapers in height from back to front (used for sloped hoods/rooflines).
+// frontH = height at +Z end, backH = height at -Z end. Base sits at y=0 (bottom face flat).
+function taperedBox(w, backH, frontH, d, color){
+  const geo = new THREE.BoxGeometry(w, 1, d, 1, 1, 1);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++){
+    const x = pos.getX(i);
+    const y = pos.getY(i);
+    const z = pos.getZ(i);
+    // z ranges -d/2 (back) .. +d/2 (front); y ranges -0.5 (bottom) .. +0.5 (top)
+    const t = (z + d/2) / d; // 0 at back, 1 at front
+    const h = backH + (frontH - backH) * t;
+    const newY = (y + 0.5) * h; // 0 at bottom, h at top
+    pos.setY(i, newY);
+  }
+  geo.computeVertexNormals();
+  const mat = new THREE.MeshStandardMaterial({ color: color, metalness: 0.4, roughness: 0.5 });
+  return new THREE.Mesh(geo, mat);
+}
+
+// A box that tapers in height AND has rounded vertical side edges — combines roundedBox + taper.
+function roundedTaperedBox(w, backH, frontH, d, radius, color){
+  const maxH = Math.max(backH, frontH, 0.05);
+  const r = Math.min(radius, w/2 - 0.001, maxH/2 - 0.001);
+  const shape = new THREE.Shape();
+  const x = -w/2, y = 0;
+
+  shape.moveTo(x + r, y);
+  shape.lineTo(x + w - r, y);
+  shape.quadraticCurveTo(x + w, y, x + w, y + r);
+  shape.lineTo(x + w, y + maxH - r);
+  shape.quadraticCurveTo(x + w, y + maxH, x + w - r, y + maxH);
+  shape.lineTo(x + r, y + maxH);
+  shape.quadraticCurveTo(x, y + maxH, x, y + maxH - r);
+  shape.lineTo(x, y + r);
+  shape.quadraticCurveTo(x, y, x + r, y);
+
+  const geo = new THREE.ExtrudeGeometry(shape, {
+    depth: d,
+    bevelEnabled: false,
+    curveSegments: 8
+  });
+  geo.translate(0, 0, -d/2);
+
+  // Taper the height by scaling Y per-vertex based on Z position
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++){
+    const py = pos.getY(i);
+    const pz = pos.getZ(i);
+    const t = (pz + d/2) / d; // 0 = back, 1 = front
+    const targetH = backH + (frontH - backH) * t;
+    const scale = maxH > 0 ? targetH / maxH : 1;
+    pos.setY(i, py * scale);
+  }
+  geo.computeVertexNormals();
+
+  const mat = new THREE.MeshStandardMaterial({ color: color, metalness: 0.4, roughness: 0.5 });
+  return new THREE.Mesh(geo, mat);
+}
+
 function buildCar(profileKey){
   if (carGroup) {
     scene.remove(carGroup);
@@ -291,11 +377,12 @@ function buildCar(profileKey){
   const cabinLen = p.length - p.hoodLen - p.trunkLen;
 
   /* ---------------------------------------------------
-     HOOD
+     HOOD — slopes down toward the front bumper
   --------------------------------------------------- */
   const hoodH = p.height * 0.30;
-  const hood = box(p.width * 0.98, hoodH, p.hoodLen, getColor('hood'));
-  hood.position.set(0, bodyBase + hoodH/2, (p.length/2) - (p.hoodLen/2));
+  const hoodFrontH = hoodH * 0.55; // lower at the very front
+  const hood = taperedBox(p.width * 0.98, hoodH, hoodFrontH, p.hoodLen, getColor('hood'));
+  hood.position.set(0, bodyBase, (p.length/2) - (p.hoodLen/2));
   carGroup.add(hood);
   panelMeshes.hood = hood;
 
@@ -306,20 +393,22 @@ function buildCar(profileKey){
   let trunkMesh;
 
   if (p.bodyStyle === 'hatchback'){
-    // Shorter, taller rear panel that slopes visually (still a box, but proportioned steeper)
+    // Taller hatch panel near the cabin, sloping down toward the rear bumper
     trunkH = p.height * 0.55;
-    trunkMesh = box(p.width * 0.98, trunkH, p.trunkLen, getColor('trunk'));
-    trunkMesh.position.set(0, bodyBase + trunkH/2, -(p.length/2) + (p.trunkLen/2));
+    const trunkBumperH = trunkH * 0.6;
+    trunkMesh = taperedBox(p.width * 0.98, trunkBumperH, trunkH, p.trunkLen, getColor('trunk'));
+    trunkMesh.position.set(0, bodyBase, -(p.length/2) + (p.trunkLen/2));
   } else if (p.bodyStyle === 'pickup'){
-    // Truck bed: low side walls + open bed floor look (bed walls colorable as "trunk")
+    // Truck bed: rounded low side walls
     const bedWallH = p.height * 0.32;
-    trunkMesh = box(p.width * 0.98, bedWallH, p.trunkLen, getColor('trunk'));
+    trunkMesh = roundedBox(p.width * 0.98, bedWallH, p.trunkLen, 0.05, getColor('trunk'));
     trunkMesh.position.set(0, bodyBase + bedWallH/2, -(p.length/2) + (p.trunkLen/2));
     trunkH = bedWallH;
   } else {
-    // Sedan / SUV trunk or tailgate
-    trunkMesh = box(p.width * 0.98, trunkH, p.trunkLen, getColor('trunk'));
-    trunkMesh.position.set(0, bodyBase + trunkH/2, -(p.length/2) + (p.trunkLen/2));
+    // Sedan / SUV trunk or tailgate — slight rise toward the cabin side
+    const trunkFrontH = trunkH * 0.85;
+    trunkMesh = taperedBox(p.width * 0.98, trunkFrontH, trunkH, p.trunkLen, getColor('trunk'));
+    trunkMesh.position.set(0, bodyBase, -(p.length/2) + (p.trunkLen/2));
   }
   carGroup.add(trunkMesh);
   panelMeshes.trunk = trunkMesh;
@@ -354,52 +443,62 @@ function buildCar(profileKey){
     : 0;
 
   roofLen = cabinForwardLen;
-  const roof = box(p.width * 0.9, roofH, roofLen, getColor('roof'));
-  roof.position.set(0, cabinBase + cabinH - roofH/2, cabinZOffset);
+  const roofFrontH = roofH * 0.85; // slight forward slope on the roofline
+  const roof = roundedTaperedBox(p.width * 0.9, roofH, roofFrontH, roofLen, 0.08, getColor('roof'));
+  roof.position.set(0, cabinBase + cabinH - roofH, cabinZOffset);
   carGroup.add(roof);
   panelMeshes.roof = roof;
 
-  // Glass (non-colorable)
+  // Glass (non-colorable) — tapers shorter toward the front for a raked windshield look
   glassH = cabinH - roofH;
-  const glass = box(p.width * 0.86, glassH, roofLen * 0.92, 0x223344);
+  const glassFrontH = glassH * 0.75;
+  const glass = taperedBox(p.width * 0.86, glassH, glassFrontH, roofLen * 0.92, 0x223344);
   glass.material.metalness = 0.1;
   glass.material.roughness = 0.1;
   glass.material.opacity = 0.7;
   glass.material.transparent = true;
-  glass.position.set(0, cabinBase + glassH/2, cabinZOffset);
+  glass.position.set(0, cabinBase, cabinZOffset);
   carGroup.add(glass);
 
   /* ---------------------------------------------------
-     DOORS
+     DOORS — rounded front/rear edges (built as roundedBox then rotated)
   --------------------------------------------------- */
   const doorH = chassisH + glassH * 0.55;
   const doorLen = p.bodyStyle === 'pickup' ? cabinForwardLen + 0.4 : cabinLen + 0.3;
-  const doorThickness = 0.04;
+  const doorThickness = 0.05;
   const doorZOffset = p.bodyStyle === 'pickup' ? cabinZOffset : 0;
+  const doorRadius = 0.06;
 
-  const doorRight = box(doorThickness, doorH, doorLen, getColor('doorRight'));
+  // roundedBox builds its rounded cross-section in the X/Y plane, extruded along Z.
+  // We want rounding on the length/height face, with thickness along X — so build
+  // with (length, height, thickness) then rotate 90° around Y.
+  const doorRight = roundedBox(doorLen, doorH, doorThickness, doorRadius, getColor('doorRight'));
+  doorRight.rotation.y = Math.PI / 2;
   doorRight.position.set(p.width/2 + doorThickness/2 - 0.01, bodyY + doorH/2, doorZOffset);
   carGroup.add(doorRight);
   panelMeshes.doorRight = doorRight;
 
-  const doorLeft = box(doorThickness, doorH, doorLen, getColor('doorLeft'));
+  const doorLeft = roundedBox(doorLen, doorH, doorThickness, doorRadius, getColor('doorLeft'));
+  doorLeft.rotation.y = Math.PI / 2;
   doorLeft.position.set(-(p.width/2 + doorThickness/2 - 0.01), bodyY + doorH/2, doorZOffset);
   carGroup.add(doorLeft);
   panelMeshes.doorLeft = doorLeft;
 
   /* ---------------------------------------------------
-     BUMPERS
+     BUMPERS — rounded ends
   --------------------------------------------------- */
   const bumperH = p.height * 0.20;
-  const bumperLen = 0.28;
+  const bumperLen = 0.32;
+  const bumperRadius = 0.07;
 
-  const frontBumper = box(p.width * 1.02, bumperH, bumperLen, getColor('frontBumper'));
-  frontBumper.position.set(0, bodyY + bumperH/2, p.length/2 + bumperLen/2 - 0.05);
+  // roundedBox rounds the X/Y cross-section (width x height), extruded along Z (bumper depth)
+  const frontBumper = roundedBox(p.width * 1.0, bumperH, bumperLen, bumperRadius, getColor('frontBumper'));
+  frontBumper.position.set(0, bodyY + bumperH/2, p.length/2 + bumperLen/2 - 0.06);
   carGroup.add(frontBumper);
   panelMeshes.frontBumper = frontBumper;
 
-  const rearBumper = box(p.width * 1.02, bumperH, bumperLen, getColor('rearBumper'));
-  rearBumper.position.set(0, bodyY + bumperH/2, -(p.length/2) - bumperLen/2 + 0.05);
+  const rearBumper = roundedBox(p.width * 1.0, bumperH, bumperLen, bumperRadius, getColor('rearBumper'));
+  rearBumper.position.set(0, bodyY + bumperH/2, -(p.length/2) - bumperLen/2 + 0.06);
   carGroup.add(rearBumper);
   panelMeshes.rearBumper = rearBumper;
 
