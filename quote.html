@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Get a Quote — AFK Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <div class="logo"><span class="dot">●</span> AFK STUDIO</div>
+    <nav class="nav-links">
+      <a href="index.html" data-page="home">Home</a>
+      <a href="quote.html" data-page="quote">Get a Quote</a>
+      <a href="booking.html" data-page="booking">Booking</a>
+      <a href="coverage.html" data-page="coverage">Pricing</a>
+      <a href="contact.html" data-page="contact">Contact</a>
+    </nav>
+    <a href="booking.html" class="nav-cta">Book Now</a>
+  </div>
+</header>
+
+<section class="page-header">
+  <div class="wrap page-header-content">
+    <div class="hero-eyebrow">Instant estimate</div>
+    <h1>Build your <span>quote.</span></h1>
+    <p>Pick your vehicle and the service you want. We'll estimate the material needed, give you a starting price, and let you preview your wrap in 3D — final quote confirmed after inspection.</p>
+  </div>
+</section>
+
+<section class="calc-section">
+  <div class="wrap reveal">
+    <div class="calc-grid">
+      <div class="calc-form">
+        <div class="field">
+          <label for="vehicle">Vehicle</label>
+          <select id="vehicle">
+            <option value="" data-size="" data-sqft="0">Select your vehicle...</option>
+            <optgroup label="Compact / Small Sedan">
+              <option value="Honda Civic" data-size="compact" data-sqft="280">Honda Civic</option>
+              <option value="Honda Integra / RSX (DC5)" data-size="compact" data-sqft="270">Honda Integra / RSX (DC5)</option>
+              <option value="Toyota Corolla" data-size="compact" data-sqft="280">Toyota Corolla</option>
+              <option value="Mazda 3" data-size="compact" data-sqft="285">Mazda 3</option>
+              <option value="Mini Cooper" data-size="compact" data-sqft="260">Mini Cooper</option>
+            </optgroup>
+            <optgroup label="Mid-Size Sedan / Coupe">
+              <option value="Honda Accord" data-size="midsize" data-sqft="320">Honda Accord</option>
+              <option value="Toyota Camry" data-size="midsize" data-sqft="320">Toyota Camry</option>
+              <option value="BMW 3 Series" data-size="midsize" data-sqft="310">BMW 3 Series</option>
+              <option value="Nissan Altima" data-size="midsize" data-sqft="315">Nissan Altima</option>
+              <option value="Mercedes C-Class" data-size="midsize" data-sqft="315">Mercedes C-Class</option>
+            </optgroup>
+            <optgroup label="SUV / Crossover">
+              <option value="Toyota RAV4" data-size="suv" data-sqft="380">Toyota RAV4</option>
+              <option value="Honda CR-V" data-size="suv" data-sqft="380">Honda CR-V</option>
+              <option value="Jeep Grand Cherokee" data-size="suv" data-sqft="400">Jeep Grand Cherokee</option>
+              <option value="BMW X5" data-size="suv" data-sqft="410">BMW X5</option>
+              <option value="Range Rover Sport" data-size="suv" data-sqft="420">Range Rover Sport</option>
+            </optgroup>
+            <optgroup label="Truck / Large SUV">
+              <option value="Toyota Hilux" data-size="truck" data-sqft="460">Toyota Hilux</option>
+              <option value="Ford F-150" data-size="truck" data-sqft="500">Ford F-150</option>
+              <option value="Toyota Land Cruiser" data-size="truck" data-sqft="480">Toyota Land Cruiser</option>
+              <option value="Chevrolet Tahoe" data-size="truck" data-sqft="490">Chevrolet Tahoe</option>
+              <option value="Nissan Patrol" data-size="truck" data-sqft="490">Nissan Patrol</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="service">Service</label>
+          <select id="service">
+            <option value="wrap">Vinyl Wrap (full body)</option>
+            <option value="ppf">PPF (full body)</option>
+            <option value="ppf-partial">PPF (front-end / high-impact)</option>
+            <option value="tint">Window Tint (full vehicle)</option>
+            <option value="detail">Detailing (full interior + exterior)</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Package Level</label>
+          <div class="pkg-options" id="pkgOptions">
+            <label class="pkg-opt active" data-mult="1">
+              <input type="radio" name="pkg" value="1" checked>Standard
+            </label>
+            <label class="pkg-opt" data-mult="1.25">
+              <input type="radio" name="pkg" value="1.25">Premium Film
+            </label>
+            <label class="pkg-opt" data-mult="1.5">
+              <input type="radio" name="pkg" value="1.5">Show / Specialty
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="ticket">
+        <div class="ticket-head">
+          <h3>Estimate</h3>
+          <span class="id mono" id="ticketId">AFK-000</span>
+        </div>
+        <div class="ticket-body">
+          <div class="ticket-line"><span class="k">Vehicle</span><span class="v" id="outVehicle">—</span></div>
+          <div class="ticket-line"><span class="k">Size class</span><span class="v" id="outSize">—</span></div>
+          <div class="ticket-line"><span class="k">Service</span><span class="v" id="outService">—</span></div>
+          <div class="ticket-line"><span class="k">Material required</span><span class="v" id="outMaterial">—</span></div>
+          <div class="ticket-line"><span class="k">Package</span><span class="v" id="outPkg">Standard</span></div>
+
+          <div class="ticket-divider"></div>
+
+          <div class="ticket-total">
+            <span class="k">Estimated total</span>
+            <span class="v" id="outTotal">$0</span>
+          </div>
+
+          <div class="ticket-note">
+            Estimate based on average coverage area for this vehicle class and service multiplier. Final price confirmed after a free in-person inspection — factors like existing modifications, condition, and edge wrapping (door jambs, etc.) can adjust the total.
+          </div>
+
+          <a href="booking.html" class="ticket-cta" id="ticketCta">Book This Quote</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="preview-panel" id="previewPanel">
+      <div class="preview-head">
+        <h3>3D Wrap Preview — <span id="previewVehicleLabel">—</span></h3>
+        <span class="preview-hint">Drag to rotate</span>
+      </div>
+      <div class="preview-canvas-wrap" id="previewCanvasWrap"></div>
+      <div class="preview-panels" id="previewPanels"></div>
+      <div class="preview-apply-all">
+        <label for="applyAllColor">Apply to all panels</label>
+        <div class="swatch-indicator" id="applyAllSwatch"></div>
+        <select id="applyAllColor"></select>
+        <button id="applyAllBtn">Apply Colour</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap footer-row">
+    <div class="logo"><span class="dot">●</span> AFK STUDIO</div>
+    <div>PPF · VINYL WRAPS · WINDOW TINT · DETAILING</div>
+    <div>© 2026 AFK Studio. All rights reserved.</div>
+  </div>
+</footer>
+
+<script src="common.js"></script>
+<script src="quote.js"></script>
+<script>setActiveNav('quote');</script>
+</body>
+</html>
