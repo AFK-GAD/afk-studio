@@ -448,6 +448,28 @@
     font-size:11px;letter-spacing:0.12em;text-transform:uppercase;
     color:var(--text-dim);
   }
+  .swatch-label-row{
+    display:flex;justify-content:space-between;align-items:center;gap:8px;
+  }
+  .highlight-btn{
+    flex-shrink:0;
+    background:none;
+    border:1px solid var(--line);
+    color:var(--text-dim);
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    padding:4px 8px;
+    cursor:pointer;
+    transition:all .15s;
+  }
+  .highlight-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .highlight-btn.active{
+    background:var(--accent);
+    border-color:var(--accent);
+    color:var(--bg);
+  }
   .panel-swatch .swatch-row{
     display:flex;align-items:center;gap:10px;
   }

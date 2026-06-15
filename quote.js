@@ -119,10 +119,34 @@ const applyAllBtn = document.getElementById('applyAllBtn');
 
 // Vehicle class proportions for the procedural model
 const carProfiles = {
-  compact: { length: 4.2, width: 1.7, height: 1.3, wheelbase: 2.5, hoodLen: 1.0, trunkLen: 0.8 },
-  midsize: { length: 4.7, width: 1.8, height: 1.4, wheelbase: 2.7, hoodLen: 1.1, trunkLen: 1.0 },
-  suv:     { length: 4.6, width: 1.85, height: 1.7, wheelbase: 2.7, hoodLen: 1.05, trunkLen: 0.9 },
-  truck:   { length: 5.4, width: 1.95, height: 1.85, wheelbase: 3.2, hoodLen: 1.2, trunkLen: 1.4 }
+  compact: {
+    label: 'Compact / Small Sedan',
+    bodyStyle: 'hatchback',
+    length: 4.0, width: 1.65, height: 1.25,
+    wheelbase: 2.4, hoodLen: 0.95, trunkLen: 0.55,
+    wheelScale: 1.0
+  },
+  midsize: {
+    label: 'Mid-size Sedan / Coupe',
+    bodyStyle: 'sedan',
+    length: 4.8, width: 1.78, height: 1.35,
+    wheelbase: 2.75, hoodLen: 1.15, trunkLen: 1.05,
+    wheelScale: 1.05
+  },
+  suv: {
+    label: 'SUV / Crossover',
+    bodyStyle: 'suv',
+    length: 4.7, width: 1.9, height: 1.78,
+    wheelbase: 2.75, hoodLen: 1.0, trunkLen: 0.55,
+    wheelScale: 1.2
+  },
+  truck: {
+    label: 'Truck / Large SUV',
+    bodyStyle: 'pickup',
+    length: 5.6, width: 2.0, height: 1.9,
+    wheelbase: 3.4, hoodLen: 1.15, trunkLen: 1.5,
+    wheelScale: 1.35
+  }
 };
 
 const panelLabels = {
@@ -177,9 +201,9 @@ function initThree(){
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x23201C);
 
-  camera = new THREE.PerspectiveCamera(35, previewCanvasWrap.clientWidth / previewCanvasWrap.clientHeight, 0.1, 1000);
-  camera.position.set(5, 3, 6);
-  camera.lookAt(0, 0.6, 0);
+  camera = new THREE.PerspectiveCamera(40, previewCanvasWrap.clientWidth / previewCanvasWrap.clientHeight, 0.1, 1000);
+  camera.position.set(5.5, 3.2, 6.5);
+  camera.lookAt(0, 0.7, 0);
 
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(previewCanvasWrap.clientWidth, previewCanvasWrap.clientHeight);
@@ -257,94 +281,200 @@ function buildCar(profileKey){
 
   const getColor = (key) => panelColors[key] || colorNameToHex(defaultPanelColorNames[key]);
 
-  // Chassis (non-colorable base)
-  const chassisH = p.height * 0.45;
-  const chassis = box(p.width, chassisH, p.length, 0x3A352F);
+  // Chassis (non-colorable base) — slightly narrower than body for a "running board" look
+  const chassisH = p.height * 0.22;
+  const chassis = box(p.width * 0.94, chassisH, p.length * 0.96, 0x2A2622);
   chassis.position.set(0, bodyY + chassisH/2, 0);
   carGroup.add(chassis);
 
-  // Hood
-  const hoodH = p.height * 0.35;
-  const hood = box(p.width * 0.96, hoodH, p.hoodLen, getColor('hood'));
-  hood.position.set(0, bodyY + chassisH + hoodH/2, (p.length/2) - (p.hoodLen/2) - 0.05);
+  const bodyBase = bodyY + chassisH; // top of chassis = base of body panels
+  const cabinLen = p.length - p.hoodLen - p.trunkLen;
+
+  /* ---------------------------------------------------
+     HOOD
+  --------------------------------------------------- */
+  const hoodH = p.height * 0.30;
+  const hood = box(p.width * 0.98, hoodH, p.hoodLen, getColor('hood'));
+  hood.position.set(0, bodyBase + hoodH/2, (p.length/2) - (p.hoodLen/2));
   carGroup.add(hood);
   panelMeshes.hood = hood;
 
-  // Trunk / tailgate
-  const trunkH = p.height * 0.38;
-  const trunk = box(p.width * 0.96, trunkH, p.trunkLen, getColor('trunk'));
-  trunk.position.set(0, bodyY + chassisH + trunkH/2, -(p.length/2) + (p.trunkLen/2) + 0.05);
-  carGroup.add(trunk);
-  panelMeshes.trunk = trunk;
+  /* ---------------------------------------------------
+     TRUNK / TAILGATE / BED — varies by body style
+  --------------------------------------------------- */
+  let trunkH = p.height * 0.30;
+  let trunkMesh;
 
-  // Cabin / roof
-  const cabinLen = p.length - p.hoodLen - p.trunkLen;
-  const cabinH = p.height * 0.62;
-  const cabinBase = bodyY + chassisH;
+  if (p.bodyStyle === 'hatchback'){
+    // Shorter, taller rear panel that slopes visually (still a box, but proportioned steeper)
+    trunkH = p.height * 0.55;
+    trunkMesh = box(p.width * 0.98, trunkH, p.trunkLen, getColor('trunk'));
+    trunkMesh.position.set(0, bodyBase + trunkH/2, -(p.length/2) + (p.trunkLen/2));
+  } else if (p.bodyStyle === 'pickup'){
+    // Truck bed: low side walls + open bed floor look (bed walls colorable as "trunk")
+    const bedWallH = p.height * 0.32;
+    trunkMesh = box(p.width * 0.98, bedWallH, p.trunkLen, getColor('trunk'));
+    trunkMesh.position.set(0, bodyBase + bedWallH/2, -(p.length/2) + (p.trunkLen/2));
+    trunkH = bedWallH;
+  } else {
+    // Sedan / SUV trunk or tailgate
+    trunkMesh = box(p.width * 0.98, trunkH, p.trunkLen, getColor('trunk'));
+    trunkMesh.position.set(0, bodyBase + trunkH/2, -(p.length/2) + (p.trunkLen/2));
+  }
+  carGroup.add(trunkMesh);
+  panelMeshes.trunk = trunkMesh;
 
-  const roofH = p.height * 0.18;
-  const roof = box(p.width * 0.88, roofH, cabinLen * 0.82, getColor('roof'));
-  roof.position.set(0, cabinBase + cabinH - roofH/2, 0.05);
+  /* ---------------------------------------------------
+     CABIN / ROOF / GLASS — varies by body style
+  --------------------------------------------------- */
+  let cabinH, cabinForwardLen, roofH, roofLen, roofYOffset, glassH;
+
+  if (p.bodyStyle === 'suv'){
+    cabinH = p.height * 0.78;
+    cabinForwardLen = cabinLen * 0.95; // roofline extends almost to rear
+    roofH = p.height * 0.16;
+  } else if (p.bodyStyle === 'pickup'){
+    cabinH = p.height * 0.62;
+    cabinForwardLen = cabinLen * 0.55; // shorter cab, rest is bed
+    roofH = p.height * 0.15;
+  } else if (p.bodyStyle === 'hatchback'){
+    cabinH = p.height * 0.68;
+    cabinForwardLen = cabinLen * 0.88;
+    roofH = p.height * 0.16;
+  } else {
+    // sedan
+    cabinH = p.height * 0.66;
+    cabinForwardLen = cabinLen * 0.82;
+    roofH = p.height * 0.17;
+  }
+
+  const cabinBase = bodyBase;
+  const cabinZOffset = p.bodyStyle === 'pickup'
+    ? (p.length/2) - p.hoodLen - cabinForwardLen/2 // push cab toward front, leaving room for bed
+    : 0;
+
+  roofLen = cabinForwardLen;
+  const roof = box(p.width * 0.9, roofH, roofLen, getColor('roof'));
+  roof.position.set(0, cabinBase + cabinH - roofH/2, cabinZOffset);
   carGroup.add(roof);
   panelMeshes.roof = roof;
 
   // Glass (non-colorable)
-  const glassH = cabinH - roofH;
-  const glass = box(p.width * 0.84, glassH, cabinLen * 0.78, 0x223344);
+  glassH = cabinH - roofH;
+  const glass = box(p.width * 0.86, glassH, roofLen * 0.92, 0x223344);
   glass.material.metalness = 0.1;
   glass.material.roughness = 0.1;
   glass.material.opacity = 0.7;
   glass.material.transparent = true;
-  glass.position.set(0, cabinBase + glassH/2, 0.05);
+  glass.position.set(0, cabinBase + glassH/2, cabinZOffset);
   carGroup.add(glass);
 
-  // Doors
-  const doorH = chassisH + glassH * 0.5;
-  const doorLen = cabinLen + 0.3;
+  /* ---------------------------------------------------
+     DOORS
+  --------------------------------------------------- */
+  const doorH = chassisH + glassH * 0.55;
+  const doorLen = p.bodyStyle === 'pickup' ? cabinForwardLen + 0.4 : cabinLen + 0.3;
   const doorThickness = 0.04;
+  const doorZOffset = p.bodyStyle === 'pickup' ? cabinZOffset : 0;
 
   const doorRight = box(doorThickness, doorH, doorLen, getColor('doorRight'));
-  doorRight.position.set(p.width/2 + doorThickness/2 - 0.01, bodyY + doorH/2, 0.05);
+  doorRight.position.set(p.width/2 + doorThickness/2 - 0.01, bodyY + doorH/2, doorZOffset);
   carGroup.add(doorRight);
   panelMeshes.doorRight = doorRight;
 
   const doorLeft = box(doorThickness, doorH, doorLen, getColor('doorLeft'));
-  doorLeft.position.set(-(p.width/2 + doorThickness/2 - 0.01), bodyY + doorH/2, 0.05);
+  doorLeft.position.set(-(p.width/2 + doorThickness/2 - 0.01), bodyY + doorH/2, doorZOffset);
   carGroup.add(doorLeft);
   panelMeshes.doorLeft = doorLeft;
 
-  // Bumpers
-  const bumperH = p.height * 0.22;
-  const bumperLen = 0.3;
+  /* ---------------------------------------------------
+     BUMPERS
+  --------------------------------------------------- */
+  const bumperH = p.height * 0.20;
+  const bumperLen = 0.28;
 
-  const frontBumper = box(p.width * 1.0, bumperH, bumperLen, getColor('frontBumper'));
+  const frontBumper = box(p.width * 1.02, bumperH, bumperLen, getColor('frontBumper'));
   frontBumper.position.set(0, bodyY + bumperH/2, p.length/2 + bumperLen/2 - 0.05);
   carGroup.add(frontBumper);
   panelMeshes.frontBumper = frontBumper;
 
-  const rearBumper = box(p.width * 1.0, bumperH, bumperLen, getColor('rearBumper'));
+  const rearBumper = box(p.width * 1.02, bumperH, bumperLen, getColor('rearBumper'));
   rearBumper.position.set(0, bodyY + bumperH/2, -(p.length/2) - bumperLen/2 + 0.05);
   carGroup.add(rearBumper);
   panelMeshes.rearBumper = rearBumper;
 
-  // Wheels
-  const wheelRadius = p.height * 0.28;
-  const wheelWidth = 0.25;
-  const wheelGeo = new THREE.CylinderGeometry(wheelRadius, wheelRadius, wheelWidth, 16);
+  /* ---------------------------------------------------
+     WHEELS — scaled per class
+  --------------------------------------------------- */
+  const wheelRadius = p.height * 0.26 * (p.wheelScale || 1);
+  const wheelWidth = 0.28 * (p.wheelScale || 1);
+  const wheelGeo = new THREE.CylinderGeometry(wheelRadius, wheelRadius, wheelWidth, 20);
   const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.3, roughness: 0.7 });
+  const hubMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.7, roughness: 0.3 });
+  const hubGeo = new THREE.CylinderGeometry(wheelRadius * 0.45, wheelRadius * 0.45, wheelWidth + 0.02, 12);
 
   const wheelXOffset = p.width/2 + wheelWidth/2 - 0.02;
   const wheelZOffset = p.wheelbase/2;
-  const wheelY = wheelRadius - 0.1;
+  const wheelY = wheelRadius - 0.05;
 
   [[1,1],[1,-1],[-1,1],[-1,-1]].forEach(([xs, zs]) => {
     const wheel = new THREE.Mesh(wheelGeo, wheelMat);
     wheel.rotation.z = Math.PI/2;
     wheel.position.set(xs * wheelXOffset, wheelY, zs * wheelZOffset);
     carGroup.add(wheel);
+
+    const hub = new THREE.Mesh(hubGeo, hubMat);
+    hub.rotation.z = Math.PI/2;
+    hub.position.set(xs * wheelXOffset, wheelY, zs * wheelZOffset);
+    carGroup.add(hub);
+  });
+
+  // Store original (non-highlighted) emissive state for each colorable panel
+  Object.values(panelMeshes).forEach(mesh => {
+    mesh.userData.baseEmissive = mesh.material.emissive.clone();
+    mesh.userData.baseEmissiveIntensity = mesh.material.emissiveIntensity || 1;
   });
 
   scene.add(carGroup);
+
+  // Adjust camera distance so larger vehicles (e.g. trucks) stay in frame
+  frameCameraForVehicle(p);
+
+  // Re-apply highlight if a panel is currently selected for highlighting
+  if (highlightedPanel && panelMeshes[highlightedPanel]){
+    setHighlight(highlightedPanel);
+  }
+}
+
+function frameCameraForVehicle(p){
+  if (!camera) return;
+  // Base distance tuned for the compact profile (~4.0m length); scale up for longer vehicles
+  const baseLength = 4.0;
+  const scaleFactor = Math.max(1, p.length / baseLength);
+  const dist = { x: 5.5, y: 3.2, z: 6.5 };
+  camera.position.set(dist.x * scaleFactor, dist.y * (1 + (scaleFactor - 1) * 0.4), dist.z * scaleFactor);
+  camera.lookAt(0, p.height * 0.35, 0);
+}
+
+/* ===== Panel highlighting ===== */
+let highlightedPanel = null;
+
+function clearHighlight(){
+  Object.values(panelMeshes).forEach(mesh => {
+    if (!mesh.material) return;
+    mesh.material.emissive.setHex(0x000000);
+    mesh.material.emissiveIntensity = 1;
+  });
+}
+
+function setHighlight(panelKey){
+  clearHighlight();
+  highlightedPanel = panelKey;
+  const mesh = panelMeshes[panelKey];
+  if (mesh && mesh.material){
+    mesh.material.emissive.setHex(0xFF4D1C);
+    mesh.material.emissiveIntensity = 0.35;
+  }
 }
 
 function buildPanelControls(){
@@ -352,10 +482,31 @@ function buildPanelControls(){
   Object.keys(panelLabels).forEach(panelKey => {
     const wrapper = document.createElement('div');
     wrapper.className = 'panel-swatch';
+    wrapper.dataset.panel = panelKey;
+
+    const labelRow = document.createElement('div');
+    labelRow.className = 'swatch-label-row';
 
     const label = document.createElement('label');
     label.textContent = panelLabels[panelKey];
-    wrapper.appendChild(label);
+    labelRow.appendChild(label);
+
+    const highlightBtn = document.createElement('button');
+    highlightBtn.type = 'button';
+    highlightBtn.className = 'highlight-btn';
+    highlightBtn.textContent = 'Show on model';
+    highlightBtn.addEventListener('click', () => {
+      if (highlightedPanel === panelKey){
+        clearHighlight();
+        highlightedPanel = null;
+      } else {
+        setHighlight(panelKey);
+      }
+      refreshHighlightButtons();
+    });
+    labelRow.appendChild(highlightBtn);
+
+    wrapper.appendChild(labelRow);
 
     const row = document.createElement('div');
     row.className = 'swatch-row';
@@ -380,6 +531,23 @@ function buildPanelControls(){
     wrapper.appendChild(row);
     previewPanelsEl.appendChild(wrapper);
   });
+
+  refreshHighlightButtons();
+}
+
+function refreshHighlightButtons(){
+  previewPanelsEl.querySelectorAll('.panel-swatch').forEach(wrapper => {
+    const key = wrapper.dataset.panel;
+    const btn = wrapper.querySelector('.highlight-btn');
+    if (!btn) return;
+    if (highlightedPanel === key){
+      btn.classList.add('active');
+      btn.textContent = 'Hide highlight';
+    } else {
+      btn.classList.remove('active');
+      btn.textContent = 'Show on model';
+    }
+  });
 }
 
 function persistPanelColors(){
@@ -403,7 +571,10 @@ applyAllColor.addEventListener('change', (e) => {
 });
 
 function updatePreview(sizeClass, vehicleName){
-  if (!sizeClass || !vehicleName){
+  const service = serviceSel.value;
+  const previewableServices = ['wrap', 'ppf', 'ppf-partial'];
+
+  if (!sizeClass || !vehicleName || !previewableServices.includes(service)){
     previewPanel.classList.remove('visible');
     return;
   }
