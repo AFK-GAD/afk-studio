@@ -137,11 +137,11 @@ const panelLabels = {
 
 // Default colour assigned to each panel (by name, from wrapColors in common.js)
 const defaultPanelColorNames = {
-  hood: 'Gloss Vermilion (AFK Signature)',
-  roof: 'Gloss Vermilion (AFK Signature)',
-  trunk: 'Gloss Vermilion (AFK Signature)',
-  doorLeft: 'Gloss Vermilion (AFK Signature)',
-  doorRight: 'Gloss Vermilion (AFK Signature)',
+  hood: 'AFK Signature Vermilion',
+  roof: 'AFK Signature Vermilion',
+  trunk: 'AFK Signature Vermilion',
+  doorLeft: 'AFK Signature Vermilion',
+  doorRight: 'AFK Signature Vermilion',
   frontBumper: 'Gloss Black',
   rearBumper: 'Gloss Black'
 };

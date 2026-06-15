@@ -52,7 +52,7 @@ const wrapColors = [
   { name: 'Matte Black', hex: '#2A2A2A' },
   { name: 'Gloss White', hex: '#F5F5F2' },
   { name: 'Satin Pearl White', hex: '#EDEAE3' },
-  { name: 'Gloss Vermilion (AFK Signature)', hex: '#FF4D1C' },
+  { name: 'AFK Signature Vermilion', hex: '#FF4D1C' },
   { name: 'Matte Burnt Orange', hex: '#C5481E' },
   { name: 'Gloss Racing Red', hex: '#C8102E' },
   { name: 'Satin Steel Grey', hex: '#6E6E6E' },
